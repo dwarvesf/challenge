@@ -1,24 +1,24 @@
 graph TD
 
-A[Get condition key] -->|Get money| B(Exist ?)
+A[Get condition key] -->|have| B{Exist ?}
 
 B --> |No|C{return false}
 
 B -->|Yes| D[get condition type]
 
-D --> E[is contain ?]
+D --> E{is contain ?}
 
 E -->|No| F[parse value]
 
-E -->|Yes| G[is array in json string]
+E -->|Yes| G{is array in json string}
 
-G -->|No| H[is containt text]
+G -->|No| H{is containt text}
 
-G -->|Yes| N[is include element]
+G -->|Yes| N{is include element}
 
-F --> K[swtich case for condition type and compare]
+F --> K{switch case for condition type and compare}
 
-K --> L[is match condition]
+K --> L{is match condition}
 
 K --> |No|C[Return false]
 

@@ -3,8 +3,7 @@
 - Currently, almost software is running stably, but users want to upgrade some functions or develop new features. After deciding to do a new function, the installation and testing process took a long time to ensure that the new function works well and matches the needs of the user, without having to change too much. After developing the new feature, we will let some users use this function, others will still use the current version of the application.
 - In the process of developing new features, still ensuring the development and upgrading of old functions
 
-![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/371f93d3-707c-405f-b16a-4ad1f9088714/Untitled.png)
-
+![](https://i.imgur.com/m518HUm.png)
 A simple way to do this is create a product branch that goes from the current branch and develops in parallel into 2 different products, but then managing and merging the code will be complicated and also very difficult. to manage as well as cost to develop 2 versions at the same time.
 Thus we arise a requirement that allows the developer to change the operation of the application, the flow, the interface or the processing features without having to modify the code. To make it easy to imagine it as if you use facebook with many features that it is only suitable for a certain number of users, or software versions with advanced features for paid users...
 The problem sounds complicated like how to determine which users are used, which functions are used or not, how data is stored and returned to ensure security and not affect the data. Current function...
@@ -144,13 +143,12 @@ Database name: Authorization
 **List of tables**
 
 [Diagram for feature flag](https://dbdiagram.io/d/635d532f5170fb6441bbde98)
-
+![](https://i.imgur.com/bZkNyXN.png)
 Diagram for feature flag
 
 **System architecture**
 
-![System diagram](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/ae338ed5-12a7-4936-aeb5-521109ae1288/Untitled.png)
-
+![System diagram](https://i.imgur.com/HHb2c0t.png)
 **Infrastructure**
 
 **Backend**
@@ -175,11 +173,11 @@ Input for middleware is a list of conditions with condition key and value, we wi
 
 **Flow to get feature flags base on condition inputs**
 
-![Screenshot 2022-11-06 at 15.16.08.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/8afc1f66-c2bb-4477-bd89-29dbd8ee5c08/Screenshot_2022-11-06_at_15.16.08.png)
+![](https://i.imgur.com/Pv1DJ3d.png)
 
 **Flow to check condition is true or false in detail**
 
-![Screenshot 2022-11-06 at 15.32.17.png](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/b62abd00-2716-4592-8d99-b09b887308df/Screenshot_2022-11-06_at_15.32.17.png)
+![](https://i.imgur.com/j30A35J.png)
 
 **Example**
 
@@ -240,3 +238,108 @@ Old men, children, and women OR man between 20 → 40 can see feature flag A
 7. Loop triggers → filter trigger has all conditions in the trigger are a subset in true_condition_ids
 8. SELECT * from triggers_flags tf WHERE tt.trigger_id in [enabled_trigger_ids]
 9. Return list of enabled unique feature flags
+
+**Admin system**
+
+For Homepage
+
+![](https://i.imgur.com/Fr9pDDF.png)
+
+For create feature flag
+
+![](https://i.imgur.com/L0IhgCv.png)
+
+For create trigger
+
+![](https://i.imgur.com/Fr9pDDF.png)
+
+**Frontend Apps**
+
+**Prerequisites**
+
+- The backend and Frontend need to define list of feature flag key before. If we define before we can implement independency
+
+**Implementation**
+
+- FE Call to BE to get the list of available feature flags
+- Save a list of available feature flags to context state or local storage
+- Create util function isAllowFeature(’feature_key’) → rendering condition
+
+### **Solution 4**
+
+For small and medium projects or MVP products that are in the process of testing, it is recommended to use support solutions from appropriate service providers to optimize development time and operating costs. as well as can quickly use many outstanding features compared to installing it yourself
+
+- **Advantages**
+    - Low service cost if there are few people using the service
+    - Many advanced functions
+    - Rapid deployment
+    - Multi-platform support with SDK
+    - Real-time toggle feature
+    - Support decentralization of management
+- **Defect**
+    - Service costs can be high when scale many users using the service
+    - Unable to design the specific requirements of the project
+    - Can’t solve some special requirement when improving feature
+
+**Implementation guidelines:**
+
+Setup code on frontend for each feature
+
+```jsx
+// To use in your project, import the initialize function
+import { initialize } from '@devcycle/devcycle-js-sdk'
+
+// The user object needs either a user_id, or isAnonymous set to true
+const user = { user_id: 'my_user' }
+let dvcClient
+
+try {
+  // Call initialize with the client key and a user object
+  // await on the features to be loaded from our servers
+  const dvcClient = await initialize('dvc_client_f895833e_2f80_4631_828f_e2fd5dc0f27b_23918a1', user)
+                          .onClientInitialized()
+  
+  useDVCVariable()
+} catch(ex) {
+  console.log('Error initializing DVC: ${ex}')
+}
+
+function useDVCVariable() {
+  if (!dvcClient) return
+  
+  // Fetch variable values using the identifier key coupled with a default value
+  // The default value can be of type string, boolean, number, or object
+  const dvcVariable = dvcClient.variable('liquidity-pool', false)
+  if (dvcVariable.value) {
+    // Put feature code here, or launch feature from here
+  } else {
+    // Put feature code here, or launch feature from here
+  }
+  
+  // Register a callback to be notified when a value is updated
+  dvcVariable.onUpdate((value) => {
+    // updated variable value is available
+  })
+}
+```
+
+- Create a new feature flag, Select
+
+![](https://i.imgur.com/DSRtaFL.png)
+
+
+- Define feature flag name
+
+![](https://i.imgur.com/fbkXKRL.png)
+
+- Add a condition to feature flag
+
+![](https://i.imgur.com/YpRNvKR.png)
+
+| Feature | Solution 1: Config flag in source code | Solution2: Setup config in environment | Solution 3:Build a feature flag management system | Solution 4: 3party Feature flag service |
+| --- | --- | --- | --- | --- |
+| Actively develop according to demand | x |  |  |  |
+|  Easy to upgrade according to the design of the project | x |  |  |  |
+| Our system can scale and maintain easier | x |  |  |  |
+| Cost won’t increase so fast after our app has been scale | x |  |  |  |
+|  |  |  |  |  |
