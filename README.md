@@ -1,34 +1,32 @@
 If you have any issues when you do your job, please create a challenge request and create PR to this repository.
 Please use this template to fill your challenge.
 
-**I. Challenge request (challenge story)**
+## How to submit a challenge request
 
-1. Context
-    1. What is your challenge
-    2. Why is it important to you
-    3. How does it work? (very detailed of your challenge)
-    4. what are the inputs of the challenge
-2. Real use-case of your challenge (actual situation or challenge that you are facing)
-3. Explain the financial cost of your challenge? (explain the current cost your challenge is causing or the value this solution can bring to your challenge. there could also be the opportunity cost of dealing with this challenge)
-4. Assess the complexity of the challenge (explaining the complexity in detail in your own words)
-5. How would you like to handle this challenge, for example (**workflow**/solution suggestion from requester)
-    1. Cost (This is the cost of personnel or money to implement the solution)
-    2. Time (Desired time to complete the solution)
-    3. Maximum and minimum results that you can accept (Describe the minimum output you want in general)
-    4. External resource (external resource you can provide)
-6. Describe the output (challenge statement)
+### 1. Create challenge request file
+First we need you describe about your challenge, we need very more detail about it and any paint point you have got
+- You need pull this repo to your device and create a new folder with your challenge name.
+- You need to create a markdown file with name: requirement.md and fill with your requirements.
+#### Challenge request (challenge story)
+
+##### 1. The challenge context
+    1. What is your challenge?
+    2. What are the inputs of the challenge
+    3. Why is it important to you?
+    4. How does it work? (very detailed of your challenge)
+    5. The real use-case of your challenge (actual situation or challenge that you are facing)
+
+##### 2. How would you like to handle this challenge, for example (workflow/constraints suggestion from requester)
+    1. Assess the complexity of the challenge (explain the complexity in detail in your own words)
+    2. Explain the financial cost of your challenge. (explain the current cost your challenge is causing or the value this solution can bring to your challenge. there could also be the opportunity cost of dealing with this challenge)
+    3. Time (Desired time to complete the solution)
+    4. Maximum and minimum results that you can accept (Describe the minimum output you want in general)
+    5. External resource (external resource you can provide)
+##### 3. Describe the output (challenge statement)
     1. Software/Solution input
     2. Software/Solution output
 
-**II. Technical requirement:**
+### 2. Submit challenge request file
 
-(You can give technical requirements if you have the ability or any technical requirements you want.
-For example, you want to build with the web on the react platform, support responsive on mobile and other devices,
-secure and encrypted data connection in transit, Database using oracle, unlimited extensibility, etc.)
-
-- Frontend
-- Backend
-- Database & Infrastructure
-- Operation
-- Integration & API
-- Security & Compliance
+When you ready with your challenge request you need create a pull request to branch master
+#### 
