@@ -1,42 +1,27 @@
-# Changelog template
+# Enabling team Changelog
 
-### 🎯 Team objectives…
+Hello @peeps, another week has passed with a lot of effort in researching, evaluating, and selecting. We are excited to announce **🔥Our latest challenges updates are HERE! 🔥**
 
-## 🙌 What we have done
+### 💎  **Challenges**
 
-### 💎 New
+**What is** **Feature Toggle?** 
 
-- [Feature 1](https://dwarves.foundation/) by XXX
-- [Feature 2](https://dwarves.foundation/) by YYY
+Options to **enable/disable a feature** in the application to help developers have a **good experience** and **improve performance** in the development process. We have discovered **4 solutions** to resolve this challenge. With a wide range of solutions, we have the ability to **serve any type of usage and project** in development life. 
 
-![Untitled](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/5897fff5-1fa6-4920-a1c1-a06ef66e6ddf/Untitled.png)
+Kudo to **@minhth  @Thanh Pham  @Huy Tieu @An Tran @Hieu Vu @quang** for giving us useful knowledge! 
 
-### ✨ Improvement
+To follow our summary, go over the detail at: ****[https://bit.ly/3hr64Dg](https://bit.ly/3hr64Dg)
 
-- [Improvement 1](https://dwarves.foundation/) by XXX
-- [Improvement 2](https://dwarves.foundation/) by YYY
+📍 **New** 
 
-### 🐞 Fixes
+**[S1N] Feature toggle as an inline condition.**
 
-- [Fix 1](https://dwarves.foundation/) by XXX
-- [Fix 2](https://dwarves.foundation/) by YYY
+**[S2N] Feature toggle with the value from the application’s config.**
 
-## ⛔ Roadblocks we are facing
+**[S3N] Self-implement toggle management service for controlling/monitoring.**
 
-- Roadblock 1
-- Roadblock 2
+**[S4N] Feature toggle management using 3rd parties.**
 
-## 🧭 What will we do next week
+### 👨‍👨‍👧‍👦 About us
 
-- Goal 1
-- Goal 2
-
----
-
-(Optional)
-
-## 👨‍💻 Resource Overview
-
-- Current resources
-- Upcoming change
-- PTO
+@Hải Biên is responsible for supporting the **R&D Team** execution from now on. 🥳
