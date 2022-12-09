@@ -76,8 +76,8 @@ We will create R&D changelog bi-weekly and send out to team with format:
 
 ### Areas of responsibility
 
-| AOR | Direct responsible | Backup | Discord channel|
-|---|---|---|---|---|
+| AOR | Direct responsible | Backup | Discord channel |
+|---|---|---|---|
 |Secretary| Ngoc Thanh Pham | Thanh Pham ||
 |Backend| Minh Tran | Hieu Vu ||
 |Frontend| An Tran | Thanh Pham ||
@@ -85,6 +85,7 @@ We will create R&D changelog bi-weekly and send out to team with format:
 |Process| Huy Tieu |||
 |Blockchain| Ngoc Thanh Pham |||
 |Mobile| Trung Phan |||
+
 ## Research Process
 
 ### Receive **the challenge**
