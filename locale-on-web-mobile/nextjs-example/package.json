@@ -1,0 +1,31 @@
+{
+  "name": "nextjs-locales",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "sync-trans": "locize sync --path ./public/locales --project-id 19a98752-6639-489e-9f92-ba09017a63a4 --api-key 130988e1-5297-471e-88a0-975cb0bad252 --reference-language-only false",
+    "locize-help": "locize --help"
+  },
+  "dependencies": {
+    "i18next-chained-backend": "^4.0.0",
+    "i18next-localstorage-backend": "^4.0.0",
+    "i18next-locize-backend": "^6.0.0",
+    "next": "13.0.0",
+    "next-i18next": "^12.1.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.11.8",
+    "@types/react": "18.0.24",
+    "@types/react-dom": "18.0.8",
+    "eslint": "8.26.0",
+    "eslint-config-next": "13.0.0",
+    "locize-cli": "^7.12.7",
+    "typescript": "4.8.4"
+  }
+}

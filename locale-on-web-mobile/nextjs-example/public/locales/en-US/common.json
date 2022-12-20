@@ -1,0 +1,9 @@
+{
+  "description": "This is an example for supports multiple language of Next",
+  "menu": {
+    "about": "About",
+    "home": "Home"
+  },
+  "title": "Welcome to NextJS 13",
+  "yourLng": "Your language"
+}
