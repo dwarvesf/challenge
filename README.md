@@ -43,8 +43,8 @@ We will create R&D changelog bi-weekly and send out to team with format: [Change
 
 ### Areas of responsibility
 
-| AOR | Direct responsible | Backup | Discord channel|
-|---|---|---|---|---|
+| AOR | Direct responsible | Backup | Discord channel |
+|---|---|---|---|
 |Secretary| Ngoc Thanh Pham | Thanh Pham ||
 |Backend| Minh Tran | Hieu Vu ||
 |Frontend| An Tran | Thanh Pham ||
@@ -52,6 +52,7 @@ We will create R&D changelog bi-weekly and send out to team with format: [Change
 |Process| Huy Tieu |||
 |Blockchain| Ngoc Thanh Pham |||
 |Mobile| Trung Phan |||
+
 ## Research Process
 
 ![How we work](./asset/how-we-work.png "How we work")
@@ -69,5 +70,4 @@ we use the team's social account to publish the solution and make it viral on th
 - Medium
 - Hashnode
 - Redit
-- Quora
 - Viblo
