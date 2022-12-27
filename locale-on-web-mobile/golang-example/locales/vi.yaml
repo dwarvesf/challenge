@@ -1,0 +1,3 @@
+unable_to_parse_request_body: không thể xử lý nội dung của gói tin
+email_invalid: định dạng email của bạn "{{ .email }}" ko hợp lệ
+invalid_email_or_password: sai email hoặc mật khẩu
