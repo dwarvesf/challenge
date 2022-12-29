@@ -3,21 +3,85 @@
 
 Today's systems are becoming more complex and data-intensive than ever before. The databases are getting bigger and bigger and become a challenge for applications, it will have problems with storage, processing time. More complex requirements such as statistics, reports or supporting user interactions on large amounts of data. To ensure fast application performance, in-time response allows for more advanced processing techniques. In this article we will give some solutions to help you find a solution to your problems
 
+# Problem
+We have 500M records data and users can filter or sort randomly with multiple complex aggregation fields so making a regular query with a partition table and indexed fields won’t work. Timeout when querying big data with multiple complex aggregation fields.
+
 # Solution
 
 As we know out side have a lot solution to do this but will depend on some constraint such as: price, time, infrastructure and others. In this article i will review the more recent solution and providing some use case
 
-- Solution 1: From big database we will extra data and move it to many smaller tables we call cache table, we also create index and create partition for it to make query quicker. To create cache table quicker we use multiple thread
-- Solution 2: From the beginner one database will lead the read performace so when database become bigger, we can consider to create slave database for read and backup
-- Solution 3: With the data bigger every day, we need an process  like ETL, Hadoop ecosystem
+- Level 1: From big database we will extra data and move it to many smaller tables we call cache table, we also create index and create partition for it to make query quicker. To create cache table quicker we use multiple thread
+- Level 2: From the beginner one database will lead the read performance so when database become bigger, we can consider to create slave database for read and backup
+- Level 3: With the data bigger every day, we need an process like ETL, Hadoop ecosystem
 
-## Solution 1: Cache table, partition and multithread processing
+In this article we nhận ra we need focus on level 1 
+=> Nói để reader đọc hiểu là thử nghiệm trên level 1.
 
-Indexing
+## Level 1: Cache table, partition and multithread processing
 
-### Optimize config database
+We can run parallel processes to build cached data row by row because queries with where clause and without order will be fast and we can run similar base server resources. 
+### Detail
 
-### Optimize query
+- When running aggregation in partition tables it will take a very long time to scan all tables 
+⇒ if we have a **WHERE** clause with a partition field it will help the system take some tables to query and reduce query time
+- **ORDER BY** takes a long time because it has to wait for all aggregation fields done and then order it 
+⇒ skip order aggregation fields will reduce query time
+- Making a query to do everything in our report is hopeless so we need to run parallel to get one-by-one independent row results and then return it async to the user
+
+### Solution build the cached table by getting row by row result
+
+**Query to get one row result**
+
+```jsx
+SELECT
+  target,
+  entry,
+  stoploss,
+  rr,
+  cast(round(cast(cast(sum(win) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS win_percent,
+  cast(round(cast(cast(sum(lose) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS lose_percent,
+  cast(round(cast(cast(sum(na) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS na_percent,
+  sum(win) AS win_count,
+  sum(lose) AS lose_count,
+  sum(na) AS na_count,
+  count(price_structure_id) AS price_structure_count
+FROM
+  backtest_trade_results
+WHERE 
+	entry = 1, target = 0, stoploss = 99
+GROUP BY
+  entry,
+  target,
+  stoploss,
+  rr
+```
+
+Because our table is partitioned by entry so with entry = 1 in WHERE CLAUSE the DB just needs to query in one table instead scan all tables so the query is really fast
+
+**How to build fully cached table data**
+
+- We need to define a list of values in WHERE CLAUSE so we can save time to get it when running the query
+    - Can define a static list in code if it’s static
+    - Can get distinct data from the table and cached it somewhere
+- In this example, WHERE CLAUSE contains `entry`, `target`, `stoploss` so we need to define these lists.
+    - `entry`: [1..99]
+    - `target`: [0..98]
+    - `stoploss`: [1..100]
+- After defining list to run all rows we can run a loop and run it parallel to fill up the cached table
+
+Return data while building cached table and it takes a long time to build
+
+What if the user queries new filter data and we haven’t had a cached table for this, how can we return exact data to a user in an acceptable time?
+
+1. We need to define the data event and can build ASAP after receiving new data to update cached tables which are used regularly. In this example, we have to rebuild cached table for all price structures
+2. We need to order values in the `WHERE CLAUSE` list base on the order by and where clause from the user filter and then run multiple processes to get paginated data. Example
+    1. Based on the requirement 
+    `Get all entries to have win rate from **60%** to **80%** from backtest result table (table has more than 500M records) and order by rr (reward & risk) desc`
+    We need to analyze to define the order value in this query
+
+#### Solution Indexing
+
+#### Solution Optimize query
 
 **ORM Query**
 
@@ -29,11 +93,63 @@ Indexing
 - Remove join, remove join in query instead join in application (avoid resource locking, more efficient caching, more efficient data distribution)
 - Limited use of DISTINCT because it slows down the query
 
-**Indexes**:
+You can test with the real database:
+#### 1. Optimize index
 
-- If your database uses select operator more than insert and update operator
+#### 2. Optimize query
+Before optimize database and query
+```
+SELECT 
+ miner_name, 
+  MAX(fan_percentage) 
+FROM miner_data 
+WHERE miner_name IN 
+  (SELECT DISTINCT "name" 
+   FROM miners) 
+GROUP BY 1 
+ORDER BY 1;
+ miner_name |        max        
+------------+-------------------
+ Bronze     |  94.9998652175735
+ Default    | 94.99994839358486
+ Diamond    | 94.99999006095052
+ Gold       |  94.9998083591985
+ Platinum   | 94.99982552531682
+ Silver     | 94.99996029210493
+Time: 9173.750 ms (00:09.174)
+```
 
-## Solution 2: Database architecture
+Optimize:
+```
+SELECT 
+  DISTINCT ON (miner_name) miner_name, 
+  MAX(fan_percentage) 
+FROM miner_data 
+GROUP BY miner_name;
+miner_name |        max        
+------------+-------------------
+ Bronze     |  94.9998652175735
+ Default    | 94.99994839358486
+ Diamond    | 94.99999006095052
+ Gold       |  94.9998083591985
+ Platinum   | 94.99982552531682
+ Silver     | 94.99996029210493
+Time: 2794.690 ms (00:02.795)
+```
+
+Before optimize database and query
+
+By writing query in a smarter way, we saved ourselves time.
+
+Pre-optimization: 9173.750 ms
+
+Post-optimization: 2794.690 m
+
+### 3. Optimize Partition
+### 4. Database tuning
+
+
+## Level 2: Database architecture
 
 For large systems, more and more data makes 1 database or 1 piece of hardware will not be able to serve many users or more and more data. To optimize the query and search for data, we have many techniques that can be applied to handle the above problem.
 
@@ -168,9 +284,9 @@ Sharding will be suitable for super large data, it is a scalable database archit
      - Split into smaller table by the row of the table
      - Small tables can be stored in different databases, different machine
 
-## [Database comparison](./database-system.md)
+### [Database comparison](./database-system.md)
 
-## More trending solutions for Big data
+## Level 3: More trending solutions for Big data
 
 Input: We have a dataset of e-commerce with information about product, price, category … we need to process this data and generate a report with some criteria.
 
@@ -212,3 +328,7 @@ Map reduce
 - Apache hadoop ⇒ Referral qua Brain.d.foundation.
 
 # Conclusion
+While these are some basic optimization techniques, they can bear very big fruit. Also, although these techniques are simple, it is not always easy to:
+
+- know how to optimize query
+- create a sufficient and valid number of database indexes without creating huge amounts of data on disk — thereby perhaps doing a  counter effect and encouraging the database to search in the wrong way
