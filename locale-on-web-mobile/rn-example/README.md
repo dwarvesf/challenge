@@ -25,3 +25,7 @@ yarn && yarn pod
 yarn ios
 yarn android
 ```
+
+![locale](https://user-images.githubusercontent.com/23112684/210533515-ff5cb785-3070-416a-80e0-ac9cfd97949a.gif)
+
+
