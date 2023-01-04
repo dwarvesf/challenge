@@ -15,7 +15,7 @@ Runs the app in the development mode.
 1. Make sure to create a branch and a pull request **before starting development**.
 
 ```sh
-git clone https://github.com/dwarvesf/challenge/blob/docs/locale-on-web-mobile/locale-on-web-mobile/rn-example rnlocales
+git clone https://github.com/dwarvesf/challenge && cd challenge && git checkout docs/locale-on-web-mobile && cd locale-on-web-mobile/rn-example
 yarn && yarn pod
 ```
 
