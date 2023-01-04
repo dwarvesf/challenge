@@ -1,0 +1,14 @@
+{
+  "currency": "{{val, currency}} :العملة",
+  "dateTime": "{{val, datetime}} :التاريخ / الوقت",
+  "list": "{{val, list}} :القائمة",
+  "number": "{{val, number}} :الرقم",
+  "relativeTime": "{{val, relativetime}} :الوقت النسبي",
+  "weekdays": [
+    "الإثنين",
+    "الثلاثاء",
+    "الأربعاء",
+    "الخميس",
+    "الجمعة"
+  ]
+}

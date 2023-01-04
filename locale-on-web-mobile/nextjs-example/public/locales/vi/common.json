@@ -1,0 +1,9 @@
+{
+  "description": "Đây là một ví dụ cho việc hỗ trợ nhiều ngôn ngữ của Next",
+  "menu": {
+    "about": "Giới thiệu",
+    "home": "Trang chủ"
+  },
+  "title": "Chào mừng đến với NextJS 13",
+  "yourLng": "Ngôn ngữ của bạn"
+}
