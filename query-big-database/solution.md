@@ -1,10 +1,12 @@
 ![](./images/database.png)
+
 # Introduction
 
 Today's systems are becoming more complex and data-intensive than ever before. The databases are getting bigger and bigger and become a challenge for applications, it will have problems with storage, processing time. More complex requirements such as statistics, reports or supporting user interactions on large amounts of data. To ensure fast application performance, in-time response allows for more advanced processing techniques. In this article we will give some solutions to help you find a solution to your problems
 
 # Problem
-We have 500M records data and users can filter or sort randomly with multiple complex aggregation fields so making a regular query with a partition table and indexed fields won’t work. Timeout when querying big data with multiple complex aggregation fields.
+
+We have more than 500M records data and users can filter or sort randomly with multiple complex aggregation fields so making a regular query with a partition table and indexed fields won’t work. Timeout when querying big data with multiple complex aggregation fields.
 
 # Solution
 
@@ -14,40 +16,100 @@ As we know out side have a lot solution to do this but will depend on some const
 - Level 2: From the beginner one database will lead the read performance so when database become bigger, we can consider to create slave database for read and backup
 - Level 3: With the data bigger every day, we need an process like ETL, Hadoop ecosystem
 
-In this article we nhận ra we need focus on level 1 
-=> Nói để reader đọc hiểu là thử nghiệm trên level 1.
+Almost common database, solution level 1 can help us handle query speed
 
 ## Level 1: Cache table, partition and multithread processing
 
-We can run parallel processes to build cached data row by row because queries with where clause and without order will be fast and we can run similar base server resources. 
+We can run parallel processes to build cached data row by row because queries with where clause and without order will be fast and we can run similar base server resources.
+
 ### Detail
 
-- When running aggregation in partition tables it will take a very long time to scan all tables 
-⇒ if we have a **WHERE** clause with a partition field it will help the system take some tables to query and reduce query time
-- **ORDER BY** takes a long time because it has to wait for all aggregation fields done and then order it 
-⇒ skip order aggregation fields will reduce query time
+- When running aggregation in partition tables it will take a very long time to scan all tables
+  ⇒ if we have a **WHERE** clause with a partition field it will help the system take some tables to query and reduce query time
+- **ORDER BY** takes a long time because it has to wait for all aggregation fields done and then order it
+  ⇒ skip order aggregation fields will reduce query time
 - Making a query to do everything in our report is hopeless so we need to run parallel to get one-by-one independent row results and then return it async to the user
 
 ### Solution build the cached table by getting row by row result
 
-**Query to get one row result**
+In normal way, we use `VIEW` or `MATERIALIZED VIEW` to cache the query but with large data we will have timeout or wait so long time to return all records result.
 
-```jsx
+Query with **WHERE** clause with a partition field is fast but we have to wait query by query.
+
+So if we can combine the speed from **WHERE** clause query and run multiple query at the same time then insert into one cached table, we can get result set faster and make use of application resources.
+
+Example Elixir code for this
+
+```elixir
+def update_filtered_result_report(index_id, params) do
+    entries = 1..99
+
+    entries
+    |> Task.async_stream(
+      fn entry ->
+        entry
+        |> DemoTradeResultsService.get_summary_by_entry() ## This function will return list of records after group by
+        |> Enum.chunk_every(1000)
+        |> Enum.map(fn chunk ->
+          create_all(index_id, chunk)
+        end)
+
+        Logger.info("Done entry #{entry} for filtered table #{index_id}")
+
+        length(result)
+      end,
+      max_concurrency: 64,
+      timeout: :infinity
+    )
+    |> Enum.reduce(0, fn {:ok, total}, acc -> total + acc end)
+
+    Logger.info("Done to build cached filter table #{index_id}")
+  end
+
+  def get_summary_by_entry(entry) do
+    default_query()
+    |> where([t], t.entry == ^entry)
+    |> Repo.all(timeout: :infinity)
+  end
+
+  def default_query() do
+    from(d in DemoTradeResults,
+      group_by: [d.entry, d.target, d.stoploss, d.rr],
+      select: %{
+        target: d.target,
+        entry: d.entry,
+        stoploss: d.stoploss,
+        rr: d.rr,
+        win_rate: fragment("cast(round(cast(cast(sum(win) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float)"),
+        lose_rate: fragment("cast(round(cast(cast(sum(lose) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float)"),
+        na_rate: fragment("cast(round(cast(cast(sum(na) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float)"),
+        win_count: sum(d.win),
+        lose_count: sum(d.lose),
+        na_count: sum(d.na),
+        price_structure_count: count(d.price_structure_id),
+      }
+    )
+  end
+```
+
+**Pure SQL**
+
+```sql
 SELECT
   target,
   entry,
   stoploss,
   rr,
-  cast(round(cast(cast(sum(win) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS win_percent,
-  cast(round(cast(cast(sum(lose) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS lose_percent,
-  cast(round(cast(cast(sum(na) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS na_percent,
+  cast(round(cast(cast(sum(win) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS win_rate,
+  cast(round(cast(cast(sum(lose) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS lose_rate,
+  cast(round(cast(cast(sum(na) * 100 as float) / cast(count(price_structure_id) as float) as numeric), 2) as float) AS na_rate,
   sum(win) AS win_count,
   sum(lose) AS lose_count,
   sum(na) AS na_count,
   count(price_structure_id) AS price_structure_count
 FROM
   backtest_trade_results
-WHERE 
+WHERE
 	entry = 1, target = 0, stoploss = 99
 GROUP BY
   entry,
@@ -56,17 +118,15 @@ GROUP BY
   rr
 ```
 
-Because our table is partitioned by entry so with entry = 1 in WHERE CLAUSE the DB just needs to query in one table instead scan all tables so the query is really fast
-
 **How to build fully cached table data**
 
 - We need to define a list of values in WHERE CLAUSE so we can save time to get it when running the query
-    - Can define a static list in code if it’s static
-    - Can get distinct data from the table and cached it somewhere
+  - Can define a static list in code if it’s static
+  - Can get distinct data from the table and cached it somewhere
 - In this example, WHERE CLAUSE contains `entry`, `target`, `stoploss` so we need to define these lists.
-    - `entry`: [1..99]
-    - `target`: [0..98]
-    - `stoploss`: [1..100]
+  - `entry`: [1..99]
+  - `target`: [0..98]
+  - `stoploss`: [1..100]
 - After defining list to run all rows we can run a loop and run it parallel to fill up the cached table
 
 Return data while building cached table and it takes a long time to build
@@ -75,9 +135,9 @@ What if the user queries new filter data and we haven’t had a cached table for
 
 1. We need to define the data event and can build ASAP after receiving new data to update cached tables which are used regularly. In this example, we have to rebuild cached table for all price structures
 2. We need to order values in the `WHERE CLAUSE` list base on the order by and where clause from the user filter and then run multiple processes to get paginated data. Example
-    1. Based on the requirement 
-    `Get all entries to have win rate from **60%** to **80%** from backtest result table (table has more than 500M records) and order by rr (reward & risk) desc`
-    We need to analyze to define the order value in this query
+   1. Based on the requirement
+      `Get all entries to have win rate from **60%** to **80%** from backtest result table (table has more than 500M records) and order by rr (reward & risk) desc`
+      We need to analyze to define the order value in this query
 
 #### Solution Indexing
 
@@ -94,21 +154,24 @@ What if the user queries new filter data and we haven’t had a cached table for
 - Limited use of DISTINCT because it slows down the query
 
 You can test with the real database:
+
 #### 1. Optimize index
 
 #### 2. Optimize query
+
 Before optimize database and query
+
 ```
-SELECT 
- miner_name, 
-  MAX(fan_percentage) 
-FROM miner_data 
-WHERE miner_name IN 
-  (SELECT DISTINCT "name" 
-   FROM miners) 
-GROUP BY 1 
+SELECT
+ miner_name,
+  MAX(fan_percentage)
+FROM miner_data
+WHERE miner_name IN
+  (SELECT DISTINCT "name"
+   FROM miners)
+GROUP BY 1
 ORDER BY 1;
- miner_name |        max        
+ miner_name |        max
 ------------+-------------------
  Bronze     |  94.9998652175735
  Default    | 94.99994839358486
@@ -120,13 +183,14 @@ Time: 9173.750 ms (00:09.174)
 ```
 
 Optimize:
+
 ```
-SELECT 
-  DISTINCT ON (miner_name) miner_name, 
-  MAX(fan_percentage) 
-FROM miner_data 
+SELECT
+  DISTINCT ON (miner_name) miner_name,
+  MAX(fan_percentage)
+FROM miner_data
 GROUP BY miner_name;
-miner_name |        max        
+miner_name |        max
 ------------+-------------------
  Bronze     |  94.9998652175735
  Default    | 94.99994839358486
@@ -146,8 +210,18 @@ Pre-optimization: 9173.750 ms
 Post-optimization: 2794.690 m
 
 ### 3. Optimize Partition
+
 ### 4. Database tuning
 
+SQL query which we execute, has to load the data into memory to perform any operation. It has to hold the data in memory, till the execution completes.
+
+If the memory is full, data will be spilled to disk which causes the transactions to run slow, because disk I/O is time taking task.
+
+So, a good amount of memory enough to fit the data that is being processes as part of SQL is needed.
+
+So you need increase server resource as much as you can base on your scale and acceptable cost to prevent out of memory or out of CPU utilization and increase query process speed
+
+We suggest to check the benchmark chart and config to your database server to make sure `CPU utilization` and `Memory usage` are under 70%, so it will make query speed is stable
 
 ## Level 2: Database architecture
 
@@ -157,7 +231,7 @@ For large systems, more and more data makes 1 database or 1 piece of hardware wi
 
 For systems that serve many users with many different tasks such as reading, writing, updating data ... to optimize data reading we can install replica databases so that clients can optimize reading on database replicas and optimize data writing on database master while ensuring performance and data integrity for clients.
 
-We talk about how replica works, when a client sends enough data to database A, databases B and C are 2 replicas will also read the corresponding changes to update. Database A can actively send information through B and C and wait for confirmation when it is called synchronous, it ensures the data on all servers is the same, but it takes an extra time to wait for data. synchronized and send the response back to the client. If there is a replica machine that does not respond, all data will be rolledback.
+We talk about how replica works, when a client sends enough data to database A, databases B and C are 2 replicas will also read the corresponding changes to update. Database A can actively send information through B and C and wait for confirmation when it is called synchronous, it ensures the data on all servers is the same, but it takes an extra time to wait for data. synchronized and send the response back to the client. If there is a replica machine that does not respond, all data will be rolled back.
 
 The second way is that the client sends data to server A and server A will respond to the successful result to the client immediately, then the changed data will be synchronized to database servers B and C. This option is asynchronous when the job copies data to other servers when network problems occur.
 
@@ -208,7 +282,7 @@ partition by range (order_date)(
 );
 ```
 
-- ****Hash partition:**** Streams of data will be randomly distributed into partitions, using a hash value column partition key function. Every time new data is available, the hash value will be calculated and decide to which part the data should belong. With the Hash partition type, the partitions will have the same data
+- \***\*Hash partition:\*\*** Streams of data will be randomly distributed into partitions, using a hash value column partition key function. Every time new data is available, the hash value will be calculated and decide to which part the data should belong. With the Hash partition type, the partitions will have the same data
 
 ```sql
 CREATE TABLE employees (
@@ -235,6 +309,7 @@ This setting makes reading large amounts of data guaranteed to be safe.
 **Advantage:**
 
 Load balancing: Requests are distributed and moderated across nodes
+
 - High availability
 - Data redundancy: DB nodes are synchronized, in case there is a problem in one node, data can still be accessed at another node.
 - Scalability: Easily upgrade, add equipment and fix problems.
@@ -269,20 +344,20 @@ Sharding will be suitable for super large data, it is a scalable database archit
 **Classification of sharding architectures:**
 
 - Key based sharding
-     - Use table keys to determine which shard to save data, Prevent data hot spots, no need to maintain a map of where data is stored
-     - Difficulty adding new shards, data imbalance between shards
+  - Use table keys to determine which shard to save data, Prevent data hot spots, no need to maintain a map of where data is stored
+  - Difficulty adding new shards, data imbalance between shards
 - Range base sharding
-     - Based on the range of a value of a certain data column
-     - Can be unevenly distributed leading to data hotspots
+  - Based on the range of a value of a certain data column
+  - Can be unevenly distributed leading to data hotspots
 - Directory based sharding (List)
-     - Need to create and maintain lookup table using segment key
-     - Each key is tied to its own specific segment
+  - Need to create and maintain lookup table using segment key
+  - Each key is tied to its own specific segment
 - Vertical sharding
-     - Split table into smaller table with different number of columns data
-     - Small tables can be stored in different databases, different machine
+  - Split table into smaller table with different number of columns data
+  - Small tables can be stored in different databases, different machine
 - Horizontal sharding
-     - Split into smaller table by the row of the table
-     - Small tables can be stored in different databases, different machine
+  - Split into smaller table by the row of the table
+  - Small tables can be stored in different databases, different machine
 
 ### [Database comparison](./database-system.md)
 
@@ -318,9 +393,9 @@ The components:
 ![Apache Spark](./images/apache-spark.png)
 
 - **Spark SQL**: Spark SQL focuses on structured data processing, using a data frame approach borrowed from the R and Python languages (in Pandas). As the name suggests, Spark SQL also provides an interface with SQL syntax to query data, bringing the power of Apache Spark to data analysts and developers alike.
-- **MLlib** (*****Machine Learning Library)**** : MLlib is a distributed machine learning platform on top of Spark with a distributed memory-based architecture. According to some comparisons, Spark MLlib is 9 times faster than the equivalent Hadoop library Apache Mahout.*
+- **MLlib** (**\***Machine Learning Library)\*_\*\* : MLlib is a distributed machine learning platform on top of Spark with a distributed memory-based architecture. According to some comparisons, Spark MLlib is 9 times faster than the equivalent Hadoop library Apache Mahout._
 - **GraphX**: Spark GraphX comes with a selection of distributed algorithms for dealing with graph structure. These algorithms use Spark Core's RDD approach to data modeling; The GraphFrames package allows you to perform graph processing on data frames, including taking advantage of the Catalyst optimizer for graph queries.
-Map reduce
+  Map reduce
 
 **Hadoop ecosystem**
 
@@ -328,7 +403,8 @@ Map reduce
 - Apache hadoop ⇒ Referral qua Brain.d.foundation.
 
 # Conclusion
+
 While these are some basic optimization techniques, they can bear very big fruit. Also, although these techniques are simple, it is not always easy to:
 
 - know how to optimize query
-- create a sufficient and valid number of database indexes without creating huge amounts of data on disk — thereby perhaps doing a  counter effect and encouraging the database to search in the wrong way
+- create a sufficient and valid number of database indexes without creating huge amounts of data on disk — thereby perhaps doing a counter effect and encouraging the database to search in the wrong way
