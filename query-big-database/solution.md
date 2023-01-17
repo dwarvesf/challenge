@@ -209,6 +209,65 @@ Pre-optimization: 9173.750 ms
 
 Post-optimization: 2794.690 m
 
+#### Investigate query WHERE IN vs JOIN
+The original query:
+```SQL
+SELECT
+      r.entry,
+      r.target,
+      r.rr,
+      r.custom_rr,
+      SUM ( r.win ) AS win_count,
+      SUM ( r.lose ) AS lose_count,
+      SUM ( r.na ) AS na_count,
+      COUNT ( r.price_structure_id ) AS price_structure_count,
+      cast(round(cast(sum(realized_pnl) as numeric), 2) as float) as realized_pnl
+  FROM
+      demo_trade_results_range r 
+  WHERE
+      r.entry = 1 
+      AND r.price_structure_id IN (?,?,....)
+  GROUP BY
+      r.entry, r.target, r.stoploss, r.rr, r.custom_rr;
+```
+Currently, we used WHERE IN in our query, we concerned that it will be slow because we have a lot of price_structure_id in the IN clause. So we decided to change it to JOIN instead of WHERE IN. And do some benchmark to see the difference between them.
+```SQL
+SELECT
+    r.entry,
+    r.target,
+    r.rr,
+    r.custom_rr,
+    SUM ( r.win ) AS win_count,
+    SUM ( r.lose ) AS lose_count,
+    SUM ( r.na ) AS na_count,
+    COUNT ( r.price_structure_id ) AS price_structure_count,
+    cast(round(cast(sum(realized_pnl) as numeric), 2) as float) as realized_pnl
+FROM
+    demo_trade_results_range r 
+    INNER JOIN price_structures ps ON r.price_structure_id = ps.id
+WHERE
+    r.entry = 1
+    -- Some other conditions
+GROUP BY
+    r.entry, r.target, r.stoploss, r.rr, r.custom_rr;
+```
+
+With WHERE IN case clause, we created a script to execute the query with different price_structure_id in the IN clause. Each case, run 1000 time and get the average. And we got the result:
+
+WHERE IN result:
+| Price structure count |   200   |   1000  |  2000   |  3000   |  5000   |
+|-----------------------|---------|---------|---------|---------|---------|
+| Execution time (ms)   | 82.678  | 119.488 | 375.951 | 644.932 | 902.126 |
+
+JOIN result:
+| Price structure count |   390   |   4246  |  9661   |
+|-----------------------|---------|---------|---------|
+| Execution time (ms)   | 189.859 | 356.08  | 570.079 |
+
+We can see that the execution time is increasing when the number of price_structure_id is increasing. But the JOIN case is not increasing as fast as the WHERE IN case.
+
+So, we could see that depend on the number of parameters, we could use WHERE IN or JOIN to get the best performance. With low number of parameters, we could use WHERE IN, and with high number of parameters, we could use JOIN.
+
 ### 3. Optimize Partition
 
 ### 4. Database tuning
