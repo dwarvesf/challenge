@@ -143,8 +143,6 @@ What if the user queries new filter data and we haven’t had a cached table for
 
 #### Solution Optimize query
 
-**ORM Query**
-
 **Raw query**
 
 - Do not use `SELECT *` if you do not need all the data in the queried tables.
@@ -156,6 +154,33 @@ What if the user queries new filter data and we haven’t had a cached table for
 You can test with the real database:
 
 #### 1. Optimize index
+
+Index is a data structure, stored according to a specialized mechanism to find records quickly. There are many different types of indexes such as hash index, b-tree index ... and in a table can create indexes for multiple columns. However, it's disadvantage will be increased time when write or update as well as complicate data management and storage space. Some notes when creating indexes:
+
+- Create index for primary key data
+- Only index frequently used columns in ```WHERE```, ```ORDER BY``` clauses
+- Do not create index for columns with too many duplicate values, null
+- Using multiple columns in an index, it is necessary to pay attention to the order of columns.
+- Index does not work for operators ```<>``` ```(!=)``` or ```NOT IN```
+
+Create index for single column
+
+```CREATE UNIQUE INDEX index_name ON table_name (column_list);```
+
+Create index for multiple columns
+
+```sql
+CREATE TABLE wallets (
+    id int not null AUTO_INCREMENT, primary key (id),
+    user_id int(10) unsigned NOT NULL,
+    bank_id int(10) unsigned NOT NULL,
+    account_id int(10) unsigned NOT NULL,
+    amount int(11) NOT NULL DEFAULT 0,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    UNIQUE INDEX multiple_index (user_id, bank_id, account_id)
+)
+```
 
 #### 2. Optimize query
 
