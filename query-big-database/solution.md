@@ -22,7 +22,7 @@ Almost common database, solution level 1 can help us handle query speed
 
 We can run parallel processes to build cached data row by row because queries with where clause and without order will be fast and we can run similar base server resources.
 
-### Detail
+#### Detail
 
 - When running aggregation in partition tables it will take a very long time to scan all tables
   ⇒ if we have a **WHERE** clause with a partition field it will help the system take some tables to query and reduce query time
@@ -30,7 +30,7 @@ We can run parallel processes to build cached data row by row because queries wi
   ⇒ skip order aggregation fields will reduce query time
 - Making a query to do everything in our report is hopeless so we need to run parallel to get one-by-one independent row results and then return it async to the user
 
-### Solution build the cached table by getting row by row result
+#### Solution build the cached table by getting row by row result
 
 In normal way, we use `VIEW` or `MATERIALIZED VIEW` to cache the query but with large data we will have timeout or wait so long time to return all records result.
 
@@ -139,11 +139,7 @@ What if the user queries new filter data and we haven’t had a cached table for
       `Get all entries to have win rate from **60%** to **80%** from backtest result table (table has more than 500M records) and order by rr (reward & risk) desc`
       We need to analyze to define the order value in this query
 
-#### Solution Indexing
-
-#### Solution Optimize query
-
-**Raw query**
+#### Optimize database query
 
 - Do not use `SELECT *` if you do not need all the data in the queried tables.
 - Write the appropriate query to avoid calling multiple queries for 1 processing logic (for, loop query)
@@ -152,37 +148,6 @@ What if the user queries new filter data and we haven’t had a cached table for
 - Limited use of DISTINCT because it slows down the query
 
 You can test with the real database:
-
-#### 1. Optimize index
-
-Index is a data structure, stored according to a specialized mechanism to find records quickly. There are many different types of indexes such as hash index, b-tree index ... and in a table can create indexes for multiple columns. However, it's disadvantage will be increased time when write or update as well as complicate data management and storage space. Some notes when creating indexes:
-
-- Create index for primary key data
-- Only index frequently used columns in ```WHERE```, ```ORDER BY``` clauses
-- Do not create index for columns with too many duplicate values, null
-- Using multiple columns in an index, it is necessary to pay attention to the order of columns.
-- Index does not work for operators ```<>``` ```(!=)``` or ```NOT IN```
-
-Create index for single column
-
-```CREATE UNIQUE INDEX index_name ON table_name (column_list);```
-
-Create index for multiple columns
-
-```sql
-CREATE TABLE wallets (
-    id int not null AUTO_INCREMENT, primary key (id),
-    user_id int(10) unsigned NOT NULL,
-    bank_id int(10) unsigned NOT NULL,
-    account_id int(10) unsigned NOT NULL,
-    amount int(11) NOT NULL DEFAULT 0,
-    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-    UNIQUE INDEX multiple_index (user_id, bank_id, account_id)
-)
-```
-
-#### 2. Optimize query
 
 Before optimize database and query
 
@@ -233,6 +198,35 @@ By writing query in a smarter way, we saved ourselves time.
 Pre-optimization: 9173.750 ms
 
 Post-optimization: 2794.690 m
+
+#### Optimize index
+
+Index is a data structure, stored according to a specialized mechanism to find records quickly. There are many different types of indexes such as hash index, b-tree index ... and in a table can create indexes for multiple columns. However, it's disadvantage will be increased time when write or update as well as complicate data management and storage space. Some notes when creating indexes:
+
+- Create index for primary key data
+- Only index frequently used columns in ```WHERE```, ```ORDER BY``` clauses
+- Do not create index for columns with too many duplicate values, null
+- Using multiple columns in an index, it is necessary to pay attention to the order of columns.
+- Index does not work for operators ```<>``` ```(!=)``` or ```NOT IN```
+
+Create index for single column
+
+```CREATE UNIQUE INDEX index_name ON table_name (column_list);```
+
+Create index for multiple columns
+
+```sql
+CREATE TABLE wallets (
+    id int not null AUTO_INCREMENT, primary key (id),
+    user_id int(10) unsigned NOT NULL,
+    bank_id int(10) unsigned NOT NULL,
+    account_id int(10) unsigned NOT NULL,
+    amount int(11) NOT NULL DEFAULT 0,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    UNIQUE INDEX multiple_index (user_id, bank_id, account_id)
+)
+```
 
 #### Investigate query WHERE IN vs JOIN
 The original query:
@@ -293,9 +287,9 @@ We can see that the execution time is increasing when the number of price_struct
 
 So, we could see that depend on the number of parameters, we could use WHERE IN or JOIN to get the best performance. With low number of parameters, we could use WHERE IN, and with high number of parameters, we could use JOIN.
 
-### 3. Optimize Partition
+#### Optimize Partition
 
-### 4. Database tuning
+#### Database tuning
 
 SQL query which we execute, has to load the data into memory to perform any operation. It has to hold the data in memory, till the execution completes.
 
@@ -443,52 +437,23 @@ Sharding will be suitable for super large data, it is a scalable database archit
   - Split into smaller table by the row of the table
   - Small tables can be stored in different databases, different machine
 
-### [Database comparison](./database-system.md)
 
-## Level 3: More trending solutions for Big data
-
-Input: We have a dataset of e-commerce with information about product, price, category … we need to process this data and generate a report with some criteria.
-
-### **Props:**
-
-Database:
-
-Language:
-
-### **Cons:**
-
-### System diagram
-
-### Implementation
-
-## Compare
-
-**Apache Spark**
-
-Apache spark is designed to help process and analyze terabytes of data
-
-Apache spark is a data processing framework that provides an interface for programming parallel computing clusters with fault tolerance. Advantages of distributed computing capabilities
-
-The components:
-
-- **Spark core**: core component, connecting other components. Calculation and processing in memory, and reference to data stored in external storage systems.
-- **Spark Streaming**: is a plugin that helps Apache spark respond to real-time or near-real-time processing requests. Spark Streaming breaks down the processing stream into a continuous sequence of microbatches which can then be manipulated using the Apache Spark API. In this way, the code in the batch and streaming processes can be reused, run, and run. on the same framework, thus reducing costs for both developers and operators.
-
-![Apache Spark](./images/apache-spark.png)
-
-- **Spark SQL**: Spark SQL focuses on structured data processing, using a data frame approach borrowed from the R and Python languages (in Pandas). As the name suggests, Spark SQL also provides an interface with SQL syntax to query data, bringing the power of Apache Spark to data analysts and developers alike.
-- **MLlib** (**\***Machine Learning Library)\*_\*\* : MLlib is a distributed machine learning platform on top of Spark with a distributed memory-based architecture. According to some comparisons, Spark MLlib is 9 times faster than the equivalent Hadoop library Apache Mahout._
-- **GraphX**: Spark GraphX comes with a selection of distributed algorithms for dealing with graph structure. These algorithms use Spark Core's RDD approach to data modeling; The GraphFrames package allows you to perform graph processing on data frames, including taking advantage of the Catalyst optimizer for graph queries.
-  Map reduce
-
-**Hadoop ecosystem**
+We have a dataset of e-commerce with information about product, price, category … we need to process this data and generate a report with some criteria.
 
 - Apache kafka
 - Apache hadoop ⇒ Referral qua Brain.d.foundation.
 
-# Conclusion
+## Conclusion
 
 While these are some basic optimization techniques, they can bear very big fruit. Also, although these techniques are simple, it is not always easy to:
 
-- know how to optimize query
-- create a sufficient and valid number of database indexes without creating huge amounts of data on disk — thereby perhaps doing a counter effect and encouraging the database to search in the wrong way
+- Know how to optimize query
+- Create a sufficient and valid number of database indexes without creating huge amounts of data on disk — thereby perhaps doing a counter effect and encouraging the database to search in the wrong way
+
+## Referral
+- [Database comparison](./database-system.md)
+- [Apache kafka](https://en.wikipedia.org/wiki/Apache_Kafka)
+- [Apache hadoop](https://brain.d.foundation/Engineering/Data/Hadoop+Distributed+File+System+(HDFS))
+- [Apache Hive](https://brain.d.foundation/Engineering/Data/Introduction+to+Apache+Hive)
+- [Database sharding](https://aws.amazon.com/what-is/database-sharding/)
+- [Understanding Database Sharding](https://www.digitalocean.com/community/tutorials/understanding-database-sharding)
