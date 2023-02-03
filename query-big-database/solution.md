@@ -457,3 +457,5 @@ While these are some basic optimization techniques, they can bear very big fruit
 - [Apache Hive](https://brain.d.foundation/Engineering/Data/Introduction+to+Apache+Hive)
 - [Database sharding](https://aws.amazon.com/what-is/database-sharding/)
 - [Understanding Database Sharding](https://www.digitalocean.com/community/tutorials/understanding-database-sharding)
+- [Comparing Database Management Systems](https://www.altexsoft.com/blog/business/comparing-database-management-systems-mysql-postgresql-mssql-server-mongodb-elasticsearch-and-others/)
+- [Which Modern Database Is Right for Your Use Case?](https://www.integrate.io/blog/which-database/)
