@@ -1,24 +1,23 @@
 ![](./images/database.png)
 
-# Introduction
+## Introduction
 
-Today's systems are becoming more complex and data-intensive than ever before. The databases are getting bigger and bigger and become a challenge for applications, it will have problems with storage, processing time. More complex requirements such as statistics, reports or supporting user interactions on large amounts of data. To ensure fast application performance, in-time response allows for more advanced processing techniques. In this article we will give some solutions to help you find a solution to your problems
+The increasing complexity and data-intensity of today's systems have created challenges for applications in managing large databases. With growing storage and processing needs, these databases can slow down applications and hinder their ability to deliver fast, in-time responses. Advanced processing techniques are needed to handle the growing demand for data statistics, reports, and user interactions. In this article, we will provide practical solutions to help overcome these challenges and improve application performance
 
-# Problem
+## Problem
 
 We have more than 500M records data and users can filter or sort randomly with multiple complex aggregation fields so making a regular query with a partition table and indexed fields won’t work. Timeout when querying big data with multiple complex aggregation fields.
 
-# Solution
+## Solution
 
 As we know out side have a lot solution to do this but will depend on some constraint such as: price, time, infrastructure and others. In this article i will review the more recent solution and providing some use case
 
 - Level 1: From big database we will extra data and move it to many smaller tables we call cache table, we also create index and create partition for it to make query quicker. To create cache table quicker we use multiple thread
 - Level 2: From the beginner one database will lead the read performance so when database become bigger, we can consider to create slave database for read and backup
-- Level 3: With the data bigger every day, we need an process like ETL, Hadoop ecosystem
 
 Almost common database, solution level 1 can help us handle query speed
 
-## Level 1: Cache table, partition and multithread processing
+### Level 1: Cache table, partition and multithread processing
 
 We can run parallel processes to build cached data row by row because queries with where clause and without order will be fast and we can run similar base server resources.
 
@@ -133,11 +132,8 @@ Return data while building cached table and it takes a long time to build
 
 What if the user queries new filter data and we haven’t had a cached table for this, how can we return exact data to a user in an acceptable time?
 
-1. We need to define the data event and can build ASAP after receiving new data to update cached tables which are used regularly. In this example, we have to rebuild cached table for all price structures
-2. We need to order values in the `WHERE CLAUSE` list base on the order by and where clause from the user filter and then run multiple processes to get paginated data. Example
-   1. Based on the requirement
-      `Get all entries to have win rate from **60%** to **80%** from backtest result table (table has more than 500M records) and order by rr (reward & risk) desc`
-      We need to analyze to define the order value in this query
+- We need to define the data event and can build ASAP after receiving new data to update cached tables which are used regularly. In this example, we have to rebuild cached table for all price structures
+- We need to order values in the `WHERE CLAUSE` list base on the order by and where clause from the user filter and then run multiple processes to get paginated data. For example based on the requirement `Get all entries to have win rate from **60%** to **80%** from backtest result table (table has more than 500M records) and order by rr (reward & risk) desc` We need to analyze to define the order value in this query
 
 #### Optimize database query
 
@@ -146,6 +142,8 @@ What if the user queries new filter data and we haven’t had a cached table for
 - Split large queries into moderately sized queries (eg you can limit 10000 records at a time)
 - Remove join, remove join in query instead join in application (avoid resource locking, more efficient caching, more efficient data distribution)
 - Limited use of DISTINCT because it slows down the query
+- Use pagination: If you need to retrieve only a portion of the data, use pagination to limit the amount of data returned in each query.
+- Use appropriate aggregate functions: Use aggregate functions such as SUM, AVG, MIN, and MAX judiciously, as they can slow down the performance of large queries.
 
 You can test with the real database:
 
@@ -208,6 +206,7 @@ Index is a data structure, stored according to a specialized mechanism to find r
 - Do not create index for columns with too many duplicate values, null
 - Using multiple columns in an index, it is necessary to pay attention to the order of columns.
 - Index does not work for operators ```<>``` ```(!=)``` or ```NOT IN```
+- Avoid using subqueries: Subqueries can be slow and difficult to optimize, try to find an alternative solution using JOINs or temporary tables.
 
 Create index for single column
 
@@ -229,7 +228,9 @@ CREATE TABLE wallets (
 ```
 
 #### Investigate query WHERE IN vs JOIN
+
 The original query:
+
 ```SQL
 SELECT
       r.entry,
@@ -249,7 +250,9 @@ SELECT
   GROUP BY
       r.entry, r.target, r.stoploss, r.rr, r.custom_rr;
 ```
+
 Currently, we used WHERE IN in our query, we concerned that it will be slow because we have a lot of price_structure_id in the IN clause. So we decided to change it to JOIN instead of WHERE IN. And do some benchmark to see the difference between them.
+
 ```SQL
 SELECT
     r.entry,
@@ -301,11 +304,11 @@ So you need increase server resource as much as you can base on your scale and a
 
 We suggest to check the benchmark chart and config to your database server to make sure `CPU utilization` and `Memory usage` are under 70%, so it will make query speed is stable
 
-## Level 2: Database architecture
+### Level 2: Database architecture
 
 For large systems, more and more data makes 1 database or 1 piece of hardware will not be able to serve many users or more and more data. To optimize the query and search for data, we have many techniques that can be applied to handle the above problem.
 
-### Replication
+#### Replication
 
 For systems that serve many users with many different tasks such as reading, writing, updating data ... to optimize data reading we can install replica databases so that clients can optimize reading on database replicas and optimize data writing on database master while ensuring performance and data integrity for clients.
 
@@ -313,7 +316,7 @@ We talk about how replica works, when a client sends enough data to database A, 
 
 The second way is that the client sends data to server A and server A will respond to the successful result to the client immediately, then the changed data will be synchronized to database servers B and C. This option is asynchronous when the job copies data to other servers when network problems occur.
 
-### Partitioning
+#### Partitioning
 
 For a large data table we can split that table according to some criteria into many smaller data tables based on some criteria such as subdividing a table by day, month or year, by region, by region. IP range. We can understand this is the process of dividing tables, indexes, views at a low level, each partition as smaller compartments.
 
@@ -326,7 +329,7 @@ This is a popular method in small and medium projects, it allows programmers to 
 - The values in the column are evenly distributed
 - Do not choose columns of type varchar whose data can be anything
 
-**Chọn kiểu partition:**
+**Select partition type:**
 
 - List partition: The table will be divided into partitions based on the values of the partition key column, these values are finite and discrete (discrete value).
 
@@ -376,9 +379,7 @@ PARTITION BY HASH (empno) (
 );
 ```
 
-Partition theo row hay column
-
-### Clustering
+#### Clustering
 
 Clustering is a group of nodes that store the same database schema on the same database software with some form of data exchange between servers. From outside the cluster, servers are viewed as a single unit containing a data union that is spread across the nodes in the cluster. When a client accesses a cluster, the request is eventually routed to a single node for read and write.
 
@@ -398,7 +399,7 @@ Load balancing: Requests are distributed and moderated across nodes
 
 - Operating costs
 
-### **Sharding**
+#### **Sharding**
 
 Split a large data table horizontally. A table containing 100 million rows can be divided into multiple tables containing 1 million rows each. Each table due to the split will be placed into a separate database/server. Sharding is done to distribute the load and improve the access speed. Facebook /Twitter is using this architecture.
 
@@ -437,23 +438,21 @@ Sharding will be suitable for super large data, it is a scalable database archit
   - Split into smaller table by the row of the table
   - Small tables can be stored in different databases, different machine
 
-
-We have a dataset of e-commerce with information about product, price, category … we need to process this data and generate a report with some criteria.
-
-- Apache kafka
-- Apache hadoop ⇒ Referral qua Brain.d.foundation.
-
 ## Conclusion
 
-While these are some basic optimization techniques, they can bear very big fruit. Also, although these techniques are simple, it is not always easy to:
+Although these are basic optimization techniques, they can yield significant results. While they may be straightforward in concept, implementation may not always be straightforward. You can achieve some of the following result:
 
-- Know how to optimize query
+- Know how to optimize query command
 - Create a sufficient and valid number of database indexes without creating huge amounts of data on disk — thereby perhaps doing a counter effect and encouraging the database to search in the wrong way
+- Create partition for one or multiple column for optimize query time.
+- Apply sharding or clustering to optimize high availability and performance.
 
-## Referral
+If in your project have applied the above techniques and still have not solved the problem, then you can learn some more supporting technologies to handle big data such as Apache Spark. We will have a mining development guide for Apache Spark in the near future.
+
+## Reference
 - [Database comparison](./database-system.md)
-- [Apache kafka](https://en.wikipedia.org/wiki/Apache_Kafka)
-- [Apache hadoop](https://brain.d.foundation/Engineering/Data/Hadoop+Distributed+File+System+(HDFS))
+- [Apache Kafka](https://en.wikipedia.org/wiki/Apache_Kafka)
+- [Apache Hadoop](https://brain.d.foundation/Engineering/Data/Hadoop+Distributed+File+System+(HDFS))
 - [Apache Hive](https://brain.d.foundation/Engineering/Data/Introduction+to+Apache+Hive)
 - [Database sharding](https://aws.amazon.com/what-is/database-sharding/)
 - [Understanding Database Sharding](https://www.digitalocean.com/community/tutorials/understanding-database-sharding)
