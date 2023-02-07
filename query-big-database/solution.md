@@ -202,15 +202,15 @@ Post-optimization: 2794.690 m
 Index is a data structure, stored according to a specialized mechanism to find records quickly. There are many different types of indexes such as hash index, b-tree index ... and in a table can create indexes for multiple columns. However, it's disadvantage will be increased time when write or update as well as complicate data management and storage space. Some notes when creating indexes:
 
 - Create index for primary key data
-- Only index frequently used columns in ```WHERE```, ```ORDER BY``` clauses
+- Only index frequently used columns in `WHERE`, `ORDER BY` clauses
 - Do not create index for columns with too many duplicate values, null
 - Using multiple columns in an index, it is necessary to pay attention to the order of columns.
-- Index does not work for operators ```<>``` ```(!=)``` or ```NOT IN```
+- Index does not work for operators `<>` `(!=)` or `NOT IN`
 - Avoid using subqueries: Subqueries can be slow and difficult to optimize, try to find an alternative solution using JOINs or temporary tables.
 
 Create index for single column
 
-```CREATE UNIQUE INDEX index_name ON table_name (column_list);```
+`CREATE UNIQUE INDEX index_name ON table_name (column_list);`
 
 Create index for multiple columns
 
@@ -243,9 +243,9 @@ SELECT
       COUNT ( r.price_structure_id ) AS price_structure_count,
       cast(round(cast(sum(realized_pnl) as numeric), 2) as float) as realized_pnl
   FROM
-      demo_trade_results_range r 
+      demo_trade_results_range r
   WHERE
-      r.entry = 1 
+      r.entry = 1
       AND r.price_structure_id IN (?,?,....)
   GROUP BY
       r.entry, r.target, r.stoploss, r.rr, r.custom_rr;
@@ -265,7 +265,7 @@ SELECT
     COUNT ( r.price_structure_id ) AS price_structure_count,
     cast(round(cast(sum(realized_pnl) as numeric), 2) as float) as realized_pnl
 FROM
-    demo_trade_results_range r 
+    demo_trade_results_range r
     INNER JOIN price_structures ps ON r.price_structure_id = ps.id
 WHERE
     r.entry = 1
@@ -277,20 +277,183 @@ GROUP BY
 With WHERE IN case clause, we created a script to execute the query with different price_structure_id in the IN clause. Each case, run 1000 time and get the average. And we got the result:
 
 WHERE IN result:
-| Price structure count |   200   |   1000  |  2000   |  3000   |  5000   |
+| Price structure count | 200 | 1000 | 2000 | 3000 | 5000 |
 |-----------------------|---------|---------|---------|---------|---------|
-| Execution time (ms)   | 82.678  | 119.488 | 375.951 | 644.932 | 902.126 |
+| Execution time (ms) | 82.678 | 119.488 | 375.951 | 644.932 | 902.126 |
 
 JOIN result:
-| Price structure count |   390   |   4246  |  9661   |
+| Price structure count | 390 | 4246 | 9661 |
 |-----------------------|---------|---------|---------|
-| Execution time (ms)   | 189.859 | 356.08  | 570.079 |
+| Execution time (ms) | 189.859 | 356.08 | 570.079 |
 
 We can see that the execution time is increasing when the number of price_structure_id is increasing. But the JOIN case is not increasing as fast as the WHERE IN case.
 
 So, we could see that depend on the number of parameters, we could use WHERE IN or JOIN to get the best performance. With low number of parameters, we could use WHERE IN, and with high number of parameters, we could use JOIN.
 
 #### Optimize Partition
+
+Multi-level partitioning
+
+1. The partitioning structure
+
+```
+demo_trade_results_range
+  |
+  - demo_trade_results_range_entry_1
+  - demo_trade_results_range_entry_2
+    |
+    - demo_trade_results_range_entry_2_target_0
+    - demo_trade_results_range_entry_2_target_1
+      |
+      - demo_trade_results_range_entry_2_target_1_stoploss_0
+      - demo_trade_results_range_entry_2_target_1_stoploss_1
+      - demo_trade_results_range_entry_2_target_1_stoploss_2
+    - demo_trade_results_range_entry_2_target_3
+  - ...
+  - demo_trade_results_range_entry_99
+```
+
+Because the number of records on partition `demo_trade_results_range_entry_2` is larger than other partition, a query execution may spend more time on this partition to scan the desired records. So, another level of partitioning can be applied, for example, on field `target` by hash. In other words, the records are splitted into 3 subpartitions evenly.
+
+The same reason for table `demo_trade_results_range_entry_2`, the field `stoploss` is chose to partition by hash on table/subpartition `demo_trade_results_range_entry_2_target_1`.
+
+2. Create partitions by list on `entry` (1-level partitioning)
+
+```sql
+CREATE TABLE "public"."demo_trade_results_range" (
+  "entry" int4 NOT NULL,
+  "target" int4 NOT NULL,
+  "stoploss" int4 NOT NULL,
+  "price_structure_id" uuid NOT NULL,
+  "win" int2 NOT NULL,
+  "lose" int2 NOT NULL,
+  "na" int2 NOT NULL,
+  "rr" float8 NOT NULL,
+  "source" int4
+) PARTITION BY LIST (entry);
+
+CREATE TABLE demo_trade_results_range_entry_1 PARTITION OF demo_trade_results_range for VALUES IN ('1');
+CREATE TABLE demo_trade_results_range_entry_2 PARTITION OF demo_trade_results_range for VALUES IN ('2')
+PARTITION BY HASH (target);
+...
+CREATE TABLE demo_trade_results_range_entry_99 PARTITION OF demo_trade_results_range for VALUES IN ('99');
+```
+
+3. Create subpartitions by hash on `target` (2-level partitioning)
+
+```sql
+CREATE TABLE demo_trade_results_range_entry_2 PARTITION OF demo_trade_results_range for VALUES IN ('2')
+PARTITION BY HASH (target);
+
+CREATE TABLE demo_trade_results_range_entry_2_target_0 PARTITION OF demo_trade_results_range_entry_2 FOR VALUE WITH (modulus 3, reminder 0);
+CREATE TABLE demo_trade_results_range_entry_2_target_1 PARTITION OF demo_trade_results_range_entry_2 FOR VALUE WITH (modulus 3, reminder 1)
+PARTITION BY HASH (stoploss);
+CREATE TABLE demo_trade_results_range_entry_2_target_2 PARTITION OF demo_trade_results_range_entry_2 FOR VALUE WITH (modulus 3, reminder 2);
+```
+
+4. Create subsubpartitions by hash on `stoploss` (3-level partitioning)
+
+```sql
+CREATE TABLE demo_trade_results_range_entry_2_target_1 PARTITION OF demo_trade_results_range_entry_2 FOR VALUE WITH (modulus 3, reminder 1)
+PARTITION BY HASH (stoploss);
+
+CREATE TABLE demo_trade_results_range_entry_2_target_1_stoploss_0 PARTITION OF demo_trade_results_range_entry_2_target_1 FOR VALUE WITH (modulus 3, reminder 0);
+CREATE TABLE demo_trade_results_range_entry_2_target_1_stoploss_1 PARTITION OF demo_trade_results_range_entry_2_target_1 FOR VALUE WITH (modulus 3, reminder 1)
+PARTITION BY HASH (stoploss);
+CREATE TABLE demo_trade_results_range_entry_2_target_1_stoploss_2 PARTITION OF demo_trade_results_range_entry_2_target_1 FOR VALUE WITH (modulus 3, reminder 2);
+```
+
+5. Experiment results
+
+Let's consider the following time-consuming query:
+
+```sql
+SELECT
+    r.entry,
+    r.target,
+    r.rr,
+    r.custom_rr,
+    SUM ( r.win ) AS win_count,
+    SUM ( r.lose ) AS lose_count,
+    SUM ( r.na ) AS na_count,
+    COUNT ( r.price_structure_id ) AS price_structure_count,
+    cast(round(cast(sum(realized_pnl) as numeric), 2) as float) as realized_pnl
+FROM
+    demo_trade_results_range r
+    INNER JOIN price_structures ps ON r.price_structure_id = ps.id
+WHERE
+    r.entry = 2
+    -- Some other conditions
+GROUP BY
+    r.entry, r.target, r.stoploss, r.rr, r.custom_rr;
+```
+
+|                      | Execution Time |
+| -------------------- | -------------- |
+| 1-level partitioning | ~7 min         |
+| 2-level partitioning | ~7 min         |
+| 3-level partitioning | ~7 min         |
+
+The above table shows that multi-level partitioning does not improve the performance for this query.
+However, if we add the partition fields on WHERE clause, the performance increase significanly.
+
+Adding `target` to WHERE clause:
+
+```sql
+SELECT
+    r.entry,
+    r.target,
+    r.rr,
+    r.custom_rr,
+    SUM ( r.win ) AS win_count,
+    SUM ( r.lose ) AS lose_count,
+    SUM ( r.na ) AS na_count,
+    COUNT ( r.price_structure_id ) AS price_structure_count,
+    cast(round(cast(sum(realized_pnl) as numeric), 2) as float) as realized_pnl
+FROM
+    demo_trade_results_range r
+    INNER JOIN price_structures ps ON r.price_structure_id = ps.id
+WHERE
+    r.entry = 2 and r.target = 33
+    -- Some other conditions
+GROUP BY
+    r.entry, r.target, r.stoploss, r.rr, r.custom_rr;
+```
+
+|                      | Execution Time |
+| -------------------- | -------------- |
+| 1-level partitioning | ~7 min         |
+| 2-level partitioning | ~2 min         |
+| 3-level partitioning | ~2 min         |
+
+Adding `stoploss` to WHERE clause:
+
+```sql
+SELECT
+    r.entry,
+    r.target,
+    r.rr,
+    r.custom_rr,
+    SUM ( r.win ) AS win_count,
+    SUM ( r.lose ) AS lose_count,
+    SUM ( r.na ) AS na_count,
+    COUNT ( r.price_structure_id ) AS price_structure_count,
+    cast(round(cast(sum(realized_pnl) as numeric), 2) as float) as realized_pnl
+FROM
+    demo_trade_results_range r
+    INNER JOIN price_structures ps ON r.price_structure_id = ps.id
+WHERE
+    r.entry = 2 and r.target = 33 and r.stoploss = 44
+    -- Some other conditions
+GROUP BY
+    r.entry, r.target, r.stoploss, r.rr, r.custom_rr;
+```
+
+|                      | Execution Time |
+| -------------------- | -------------- |
+| 1-level partitioning | ~7 ms          |
+| 2-level partitioning | ~2 min         |
+| 3-level partitioning | ~13 s          |
 
 #### Database tuning
 
@@ -450,9 +613,10 @@ Although these are basic optimization techniques, they can yield significant res
 If in your project have applied the above techniques and still have not solved the problem, then you can learn some more supporting technologies to handle big data such as Apache Spark. We will have a mining development guide for Apache Spark in the near future.
 
 ## Reference
+
 - [Database comparison](./database-system.md)
 - [Apache Kafka](https://en.wikipedia.org/wiki/Apache_Kafka)
-- [Apache Hadoop](https://brain.d.foundation/Engineering/Data/Hadoop+Distributed+File+System+(HDFS))
+- [Apache Hadoop](<https://brain.d.foundation/Engineering/Data/Hadoop+Distributed+File+System+(HDFS)>)
 - [Apache Hive](https://brain.d.foundation/Engineering/Data/Introduction+to+Apache+Hive)
 - [Database sharding](https://aws.amazon.com/what-is/database-sharding/)
 - [Understanding Database Sharding](https://www.digitalocean.com/community/tutorials/understanding-database-sharding)
