@@ -290,11 +290,9 @@ We can see that the execution time is increasing when the number of price_struct
 
 So, we could see that depend on the number of parameters, we could use WHERE IN or JOIN to get the best performance. With low number of parameters, we could use WHERE IN, and with high number of parameters, we could use JOIN.
 
-#### Optimize Partition
+#### Optimize multi-level partitioning
 
-Multi-level partitioning
-
-1. The partitioning structure
+##### The partitioning structure
 
 ```
 demo_trade_results_range
@@ -317,7 +315,7 @@ Because the number of records on partition `demo_trade_results_range_entry_2` is
 
 The same reason for table `demo_trade_results_range_entry_2`, the field `stoploss` is chose to partition by hash on table/subpartition `demo_trade_results_range_entry_2_target_1`.
 
-2. Create partitions by list on `entry` (1-level partitioning)
+##### Create partitions by list on `entry` (1-level partitioning)
 
 ```sql
 CREATE TABLE "public"."demo_trade_results_range" (
@@ -339,7 +337,7 @@ PARTITION BY HASH (target);
 CREATE TABLE demo_trade_results_range_entry_99 PARTITION OF demo_trade_results_range for VALUES IN ('99');
 ```
 
-3. Create subpartitions by hash on `target` (2-level partitioning)
+##### Create subpartitions by hash on `target` (2-level partitioning)
 
 ```sql
 CREATE TABLE demo_trade_results_range_entry_2 PARTITION OF demo_trade_results_range for VALUES IN ('2')
@@ -351,7 +349,7 @@ PARTITION BY HASH (stoploss);
 CREATE TABLE demo_trade_results_range_entry_2_target_2 PARTITION OF demo_trade_results_range_entry_2 FOR VALUE WITH (modulus 3, reminder 2);
 ```
 
-4. Create subsubpartitions by hash on `stoploss` (3-level partitioning)
+##### Create subsubpartitions by hash on `stoploss` (3-level partitioning)
 
 ```sql
 CREATE TABLE demo_trade_results_range_entry_2_target_1 PARTITION OF demo_trade_results_range_entry_2 FOR VALUE WITH (modulus 3, reminder 1)
@@ -363,7 +361,7 @@ PARTITION BY HASH (stoploss);
 CREATE TABLE demo_trade_results_range_entry_2_target_1_stoploss_2 PARTITION OF demo_trade_results_range_entry_2_target_1 FOR VALUE WITH (modulus 3, reminder 2);
 ```
 
-5. Experiment results
+##### Experiment results
 
 Let's consider the following time-consuming query:
 
@@ -451,7 +449,7 @@ GROUP BY
 
 |                      | Execution Time |
 | -------------------- | -------------- |
-| 1-level partitioning | ~7 ms          |
+| 1-level partitioning | ~7 min          |
 | 2-level partitioning | ~2 min         |
 | 3-level partitioning | ~13 s          |
 
