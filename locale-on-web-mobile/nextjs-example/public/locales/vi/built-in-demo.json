@@ -1,0 +1,14 @@
+{
+  "currency": "Tiền tệ: {{val, currency}}",
+  "dateTime": "Ngày/Giờ: {{val, datetime}}",
+  "list": "Danh sách: {{val, list}}",
+  "number": "Số: {{val, number}}",
+  "relativeTime": "Thời gian tương đối: {{val, relativetime}}",
+  "weekdays": [
+    "Thứ Hai",
+    "Thứ Ba",
+    "Thứ Tư",
+    "Thứ Năm",
+    "Thứ Sáu"
+  ]
+}

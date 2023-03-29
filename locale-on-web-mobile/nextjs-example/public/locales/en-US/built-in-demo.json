@@ -1,0 +1,14 @@
+{
+  "currency": "Currency: {{val, currency}}",
+  "dateTime": "Date/Time: {{val, datetime}}",
+  "list": "List: {{val, list}}",
+  "number": "Number: {{val, number}}",
+  "relativeTime": "Relative Time: {{val, relativetime}}",
+  "weekdays": [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday"
+  ]
+}
